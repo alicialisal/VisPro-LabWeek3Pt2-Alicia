@@ -9,16 +9,20 @@ class Point {
 
 class SnakePart {
   Point position;
-  List<String> symbol;
+  String symbol;
   SnakePart(this.position, this.symbol);
 }
 
 class Snake {
   List<SnakePart> body = [];
-  String direction = 'down';
+  String direction = 'right';
 
   Snake(int x, int y) {
-    body.add(SnakePart(Point(x, y), ['  *  ', '*****', '  *  ', '*****', '  *  ']));
+    body.add(SnakePart(Point(x, y), 'O'));     // Head
+    body.add(SnakePart(Point(x - 1, y), 'OO*OO')); // Front legs
+    body.add(SnakePart(Point(x - 2, y), '=')); // Body
+    body.add(SnakePart(Point(x - 3, y), 'OO*OO')); // Back legs
+    body.add(SnakePart(Point(x - 4, y), '~')); // Tail
   }
 
   void move() {
@@ -37,38 +41,44 @@ class Snake {
         newHead = Point(body.first.position.x + 1, body.first.position.y);
         break;
       default:
-        newHead = Point(body.first.position.x, body.first.position.y + 1);
+        newHead = Point(body.first.position.x + 1, body.first.position.y);
     }
 
     // Shift body parts
     for (int i = body.length - 1; i > 0; i--) {
-      body[i].position = body[i - 1].position;
+      if (direction == 'up' || direction == 'down') {
+        // if (i == body.length - 2 || i == 1) { body[i].position = Point(body[i - 1].position.x - 2, body[i - 1].position.y); }
+        // else if (i == 2 || i == body.length - 1) { body[i].position = Point(body[i - 1].position.x + 2, body[i - 1].position.y); }
+        if (i == 0) { body[i].symbol = '  O  '; }
+        else if (i < body.length - 2 && i > 1) { body[i].symbol = '  =  '; }
+        else if (i == body.length - 1) { body[i].symbol = '  ~  '; }
+        // else { body[i].symbol = '*****';  }
+      } else {
+        if (i == 0) { body[i].symbol = 'O'; }
+        else if (i < body.length - 2 && i > 1) { body[i].symbol = '='; }
+        else if (i == body.length - 1) { body[i].symbol = '~'; }
+        // else { body[i].symbol = '*\n*\n*\n*\n*';  }
+      }
+      body[i].position = Point(body[i - 1].position.x, body[i - 1].position.y);
     }
     body.first.position = newHead;
   }
 
   void grow() {
-  // Hitung posisi tengah untuk menyisipkan segmen baru
-  int middleIndex = (body.length / 2).floor();
-
-  // Tambahkan segmen baru di tengah
-  body.insert(middleIndex, SnakePart(body[middleIndex].position, ['  *  ', '*****', '  *  ', '*****', '  *  ']));
+    // Insert new body segment after the front legs
+    body.insert(2, SnakePart(Point(body[1].position.x, body[1].position.y), '='));
   }
-
-
 
   void decideDirection(Point food) {
     Point head = body.first.position;
-
-    // Determine the direction towards the food
-    if (head.y < food.y) {
-      direction = 'down';
-    } else if (head.y > food.y) {
-      direction = 'up';
-    } else if (head.x < food.x) {
+    if (head.x < food.x) {
       direction = 'right';
     } else if (head.x > food.x) {
       direction = 'left';
+    } else if (head.y < food.y) {
+      direction = 'down';
+    } else if (head.y > food.y) {
+      direction = 'up';
     }
   }
 }
@@ -82,17 +92,17 @@ class Game {
 
   Game() {
     _initializeSize();
-    snake = Snake(width ~/ 2, 0);
+    snake = Snake(width ~/ 2, height ~/ 2);
     _generateFood();
   }
 
   void _initializeSize() {
     if (stdout.hasTerminal) {
-      width = stdout.terminalColumns - 2;
-      height = stdout.terminalLines - 3;
+      width = stdout.terminalColumns - 2; // Leave some margin
+      height = stdout.terminalLines - 3; // Leave some space for messages
     } else {
-      width = 50;
-      height = 25;
+      width = 30;
+      height = 15;
     }
   }
 
@@ -100,31 +110,27 @@ class Game {
     Random random = Random();
     do {
       food = Point(random.nextInt(width), random.nextInt(height));
-    } while (snake.body.any((part) => 
-      part.position.x <= food.x && food.x < part.position.x + 7 &&
-      part.position.y <= food.y && food.y < part.position.y + 5
-    ));
+    } while (snake.body.any((part) => part.position.x == food.x && part.position.y == food.y));
   }
 
   void update() {
     if (!gameOver) {
-      snake.decideDirection(food); // Update direction towards food
+      snake.decideDirection(food);
       snake.move();
 
-      if (snake.body.first.position.x <= food.x && food.x < snake.body.first.position.x + 7 &&
-          snake.body.first.position.y <= food.y && food.y < snake.body.first.position.y + 5) {
+      if (snake.body.first.position.x == food.x && snake.body.first.position.y == food.y) {
         snake.grow();
         _generateFood();
       }
 
-      if (snake.body.first.position.x < 0 || snake.body.first.position.x + 7 > width ||
-          snake.body.first.position.y < 0 || snake.body.first.position.y + 5 > height) {
+      if (snake.body.first.position.x < 0 || snake.body.first.position.x >= width ||
+          snake.body.first.position.y < 0 || snake.body.first.position.y >= height) {
         gameOver = true;
       }
 
       for (int i = 1; i < snake.body.length; i++) {
-        if (snake.body.first.position.x == snake.body[i].position.x && 
-            snake.body.first.position.y == snake.body[i].position.y) {
+        if (snake.body[i].position.x == snake.body.first.position.x && 
+            snake.body[i].position.y == snake.body.first.position.y) {
           gameOver = true;
           break;
         }
@@ -135,53 +141,36 @@ class Game {
   void render() {
     if (stdout.hasTerminal) {
       stdout.write('\x1B[2J\x1B[0;0H');
-    } else {
-      print('\n' * 50);
     }
 
     List<List<String>> grid = List.generate(height, (_) => List.filled(width, ' '));
 
     // Place snake on grid
     for (var part in snake.body) {
-      for (int i = 0; i < part.symbol.length; i++) {
-        if (part.position.y + i >= 0 && part.position.y + i < height) {
-          for (int j = 0; j < part.symbol[i].length; j++) {
-            if (part.position.x + j >= 0 && part.position.x + j < width) {
-              grid[part.position.y + i][part.position.x + j] = part.symbol[i][j];
-            }
-          }
-        }
+      if (part.position.x >= 0 && part.position.x < width &&
+          part.position.y >= 0 && part.position.y < height) {
+        grid[part.position.y][part.position.x] = part.symbol;
       }
     }
 
     // Place food on grid
-    if (food.y >= 0 && food.y < height && food.x >= 0 && food.x < width) {
-      grid[food.y][food.x] = '@';
-    }
+    grid[food.y][food.x] = '*';
 
     // Render grid
     for (var row in grid) {
       print(row.join());
     }
 
-    print('Score: ${snake.body.length - 1}');
-
     if (gameOver) {
-      print('Game Over! Your final score: ${snake.body.length - 1}');
+      print('Game Over! Your snake length: ${snake.body.length}');
     }
-
-    
   }
 }
 
 void main() async {
   Game game = Game();
-  game.render();
 
-  await Future.delayed(Duration(seconds: 2));
-
-  // Create a timer for the game loop
-  Timer.periodic(Duration(milliseconds: 200), (timer) {
+  Timer.periodic(Duration(milliseconds: 300), (timer) {
     game.update();
     game.render();
 
