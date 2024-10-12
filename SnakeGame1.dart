@@ -10,7 +10,8 @@ class Point {
 class SnakePart {
   Point position;
   String symbol;
-  SnakePart(this.position, this.symbol);
+  String part;
+  SnakePart(this.position, this.symbol, this.part);
 }
 
 class Snake {
@@ -18,11 +19,11 @@ class Snake {
   String direction = 'right';
 
   Snake(int x, int y) {
-    body.add(SnakePart(Point(x, y), 'O'));     // Head
-    body.add(SnakePart(Point(x - 1, y), 'OO*OO')); // Front legs
-    body.add(SnakePart(Point(x - 2, y), '=')); // Body
-    body.add(SnakePart(Point(x - 3, y), 'OO*OO')); // Back legs
-    body.add(SnakePart(Point(x - 4, y), '~')); // Tail
+    body.add(SnakePart(Point(x, y), '*', 'head'));     // Head
+    body.add(SnakePart(Point(x - 1, y), '*****', 'frontleg')); // Front legs
+    body.add(SnakePart(Point(x - 2, y), '*', 'body')); // Body
+    body.add(SnakePart(Point(x - 3, y), '*****', 'backleg')); // Back legs
+    body.add(SnakePart(Point(x - 4, y), '*', 'tail')); // Tail
   }
 
   void move() {
@@ -44,29 +45,27 @@ class Snake {
         newHead = Point(body.first.position.x + 1, body.first.position.y);
     }
 
-    // Shift body parts
     for (int i = body.length - 1; i > 0; i--) {
-      if (direction == 'up' || direction == 'down') {
-        // if (i == body.length - 2 || i == 1) { body[i].position = Point(body[i - 1].position.x - 2, body[i - 1].position.y); }
-        // else if (i == 2 || i == body.length - 1) { body[i].position = Point(body[i - 1].position.x + 2, body[i - 1].position.y); }
-        if (i == 0) { body[i].symbol = '  O  '; }
-        else if (i < body.length - 2 && i > 1) { body[i].symbol = '  =  '; }
-        else if (i == body.length - 1) { body[i].symbol = '  ~  '; }
-        // else { body[i].symbol = '*****';  }
-      } else {
-        if (i == 0) { body[i].symbol = 'O'; }
-        else if (i < body.length - 2 && i > 1) { body[i].symbol = '='; }
-        else if (i == body.length - 1) { body[i].symbol = '~'; }
-        // else { body[i].symbol = '*\n*\n*\n*\n*';  }
-      }
       body[i].position = Point(body[i - 1].position.x, body[i - 1].position.y);
+      
+      if (direction == 'up' || direction == 'down') {
+        if (i == 0 || (i < body.length - 2 && i > 1) || (i == body.length - 1)) { 
+          body[i].symbol = '*'; 
+        } else {
+          body[i].symbol = '*****';  
+        }
+      } else {
+          body[i].symbol = '*';  // Menggunakan simbol tunggal untuk kaki
+      }
     }
-    body.first.position = newHead;
+    
+    body[0].position = newHead;
+    body[0].symbol = (direction == 'up' || direction == 'down') ? '*' : '*';
   }
 
   void grow() {
     // Insert new body segment after the front legs
-    body.insert(2, SnakePart(Point(body[1].position.x, body[1].position.y), '='));
+    body.insert(2, SnakePart(Point(body[1].position.x, body[1].position.y), '*', 'body'));
   }
 
   void decideDirection(Point food) {
@@ -113,6 +112,10 @@ class Game {
     } while (snake.body.any((part) => part.position.x == food.x && part.position.y == food.y));
   }
 
+  bool isOutOfBounds(Point point) {
+    return point.x < 0 || point.x >= width || point.y < 0 || point.y >= height;
+  }
+
   void update() {
     if (!gameOver) {
       snake.decideDirection(food);
@@ -141,32 +144,54 @@ class Game {
   void render() {
     if (stdout.hasTerminal) {
       stdout.write('\x1B[2J\x1B[0;0H');
+    } else {
+      print('\n' * 50);  // Clear screen for non-terminal environments
     }
 
     List<List<String>> grid = List.generate(height, (_) => List.filled(width, ' '));
 
     // Place snake on grid
     for (var part in snake.body) {
-      if (part.position.x >= 0 && part.position.x < width &&
-          part.position.y >= 0 && part.position.y < height) {
+      if (part.part == 'frontleg' || part.part == 'backleg') {
+        // For legs, place vertically or horizontally
+        if (snake.direction == 'up' || snake.direction == 'down') {
+          for (int i = -2; i <= 2; i++) {
+            int x = part.position.x + i;
+            if (x >= 0 && x < width && part.position.y >= 0 && part.position.y < height) {
+              grid[part.position.y][x] = '*';
+            }
+          }
+        } else {
+          for (int i = -2; i <= 2; i++) {
+            int y = part.position.y + i;
+            if (part.position.x >= 0 && part.position.x < width && y >= 0 && y < height) {
+              grid[y][part.position.x] = '*';
+            }
+          }
+        }
+      } else if (part.position.x >= 0 && part.position.x < width &&
+                 part.position.y >= 0 && part.position.y < height) {
         grid[part.position.y][part.position.x] = part.symbol;
       }
     }
 
     // Place food on grid
-    grid[food.y][food.x] = '*';
+    if (!isOutOfBounds(food)) {
+      grid[food.y][food.x] = '@';
+    }
 
     // Render grid
     for (var row in grid) {
       print(row.join());
     }
 
+    print('Score: ${snake.body.length - 5}');  // Subtract initial length
+
     if (gameOver) {
       print('Game Over! Your snake length: ${snake.body.length}');
     }
   }
 }
-
 void main() async {
   Game game = Game();
 
