@@ -108,7 +108,7 @@ class Game {
   void _generateFood() {
     Random random = Random();
     do {
-      food = Point(random.nextInt(width), random.nextInt(height));
+      food = Point(random.nextInt(width - 5), random.nextInt(height - 5));
     } while (snake.body.any((part) => part.position.x == food.x && part.position.y == food.y));
   }
 
@@ -126,8 +126,8 @@ class Game {
         _generateFood();
       }
 
-      if (snake.body.first.position.x < 0 || snake.body.first.position.x >= width ||
-          snake.body.first.position.y < 0 || snake.body.first.position.y >= height) {
+      if (snake.body.first.position.x < 0 || snake.body.first.position.x >= width - 2 ||
+          snake.body.first.position.y < 0 || snake.body.first.position.y >= height - 2) {
         gameOver = true;
       }
 
